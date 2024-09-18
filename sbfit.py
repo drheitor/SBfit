@@ -74,7 +74,7 @@ def read_fits(name):
     print('Observed RV:')
     print(RV)
 
-    folder = './specs'
+    folder = '../specs'
 
     print('Loading observed spectrum:')
     print(sobject_id)
@@ -82,7 +82,7 @@ def read_fits(name):
     #selecting one
     spec_name = spec3
                     
-    hdulist = fits.open('./specs/%s' % (spec_name), memmap=False) 
+    hdulist = fits.open('../specs/%s' % (spec_name), memmap=False) 
     
     header = hdulist[1].header
     y = hdulist[1].data
@@ -168,20 +168,27 @@ def chi_squared(params, x, y):
     RV = 105
     ratio = 0.67371
     
-    mask = (x > lmax) & (x < lmin)
+    mask = (x < 6712.6) & (x > 6705.6)
     x = x[mask]  
     y = y[mask]
-        
-    syb_SB = make_synSB(params['teff_a'],params['logg_a'],params['met_a'],params['vmic_a'],params['FWHM_a'],params['abond_a']
-               ,params['teff_b'],params['logg_b'],params['met_b'],params['vmic_b'],params['FWHM_b'],params['abond_b']
+            
+    
+    syb_SB = make_synSB(params['teff_a'].value,params['logg_a'].value,params['met_a'].value,params['vmic_a'].value,params['FWHM_a'].value,params['abond_a'].value
+               ,params['teff_b'].value,params['logg_b'].value,params['met_b'].value,params['vmic_b'].value,params['FWHM_b'].value,params['abond_b'].value
                ,RV,ratio)
     
     
     interp_func = interp1d(syb_SB[4], syb_SB[5], kind='linear')
     syn_template_flux = interp_func(x)
     
-    chi2 = np.sum((y - syn_template_flux) ** 2)
-    return chi2
+
+    plt.plot(x,syn_template_flux)
+    plt.plot(x,y,'.', color='k')
+    plt.legend()
+    plt.show()
+    
+    dif = (y - syn_template_flux)
+    return dif
     
 
 
@@ -215,7 +222,7 @@ met_a = -0.2
 
 vmic_a = 1.0
 
-FWHM_a = 0.30
+FWHM_a = 0.34
 
 abond_a= 3.00
 
@@ -231,7 +238,7 @@ met_b = -0.2
 
 vmic_b = 1.0
 
-FWHM_b = 0.28
+FWHM_b = 0.34
 
 abond_b= 3.00
 
@@ -242,9 +249,6 @@ abond_b= 3.00
 RV = 105
 
 ratio = 0.67371
-
-print('making SB2 Spectrum')
-[wv_a, fl_a, wv_b, fl_b, wv_sb, fl_sb] = make_synSB(teff_a,logg_a,met_a,vmic_a,FWHM_a,abond_a, teff_b,logg_b,met_b,vmic_b,FWHM_b,abond_b,RV,ratio)
 
 
 #-----------
@@ -285,14 +289,10 @@ params.add('abond_b', abond_b, min = -5.0, max = 10.0)
 
 
 
-
-
+# just a counter
+n=0
 result = minimize(chi_squared, params, method='leastsq', args=(x, y))
 params = result.params
-
-
-
-
 
 
 
@@ -301,6 +301,11 @@ params = result.params
 
 
 
+#make the syn based on the results.
+print('making SB2 Spectrum')
+wv_a, fl_a, wv_b, fl_b, wv_sb, fl_sb = make_synSB(params['teff_a'].value,params['logg_a'].value,params['met_a'].value,params['vmic_a'].value,params['FWHM_a'].value,params['abond_a'].value
+           ,params['teff_b'].value,params['logg_b'].value,params['met_b'].value,params['vmic_b'].value,params['FWHM_b'].value,params['abond_b'].value
+           ,RV,ratio)
 
 
 #-----------
@@ -326,7 +331,7 @@ ax.set_ylabel('Intensity')
 #ax.set_title(f"radial velocity: {best_velocity_r} km/s")
 
 
-plt.savefig('./fig/sb2_test.pdf')
+plt.savefig('../fig/sb2_test.pdf')
 
 
 #-----------
