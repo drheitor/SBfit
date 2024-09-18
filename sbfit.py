@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.ndimage import gaussian_filter1d
 from astropy.io import fits
+import time
 
 from lmfit import Model
 from lmfit import minimize, Parameters
@@ -56,6 +57,16 @@ def doppler_shift(wavelength, velocity):
     return wavelength * np.sqrt((1 + velocity / c) / (1 - velocity / c))
 
 
+def timer(s):
+    
+    d =  s/ (24 * 60 * 60)
+    h = (d - int(d)) *24
+    m = (h-int(h)) *60
+    sec= (m-int(m)) *60
+    
+
+    print("%d:%02d:%02d:%02d" % (d, h, m, sec))
+    
 
 def read_fits(name):
     
@@ -82,6 +93,7 @@ def read_fits(name):
     #selecting one
     spec_name = spec3
                     
+
     hdulist = fits.open('%s/%s' % (folder, spec_name), memmap=False) 
     
     header = hdulist[1].header
@@ -142,7 +154,7 @@ def make_synSB(teff1,logg1,met1,vmic1,FWHM1,abond1,teff2,logg2,met2,vmic2,FWHM2,
     template_wavelength_1, template_flux_1 = turbo(teff1,logg1,met1,vmic1,lmin,lmax,FWHM1,abond1)
     
     #making the syn B spectrum     
-    template_wavelength_2, template_flux_2 = turbo(teff1,logg1,met1,vmic1,lmin,lmax,FWHM1,abond2)
+    template_wavelength_2, template_flux_2 = turbo(teff2,logg2,met2,vmic2,lmin,lmax,FWHM2,abond2)
 
 
     #doppler shift for the secondary Use the RV as the diference.
@@ -168,7 +180,7 @@ def chi_squared(params, x, y):
     RV = 105
     ratio = 0.67371
     
-    mask = (x < 6712.6) & (x > 6705.6)
+    mask = (x < lmax) & (x > lmin)
     x = x[mask]  
     y = y[mask]
             
@@ -181,12 +193,6 @@ def chi_squared(params, x, y):
     interp_func = interp1d(syb_SB[4], syb_SB[5], kind='linear')
     syn_template_flux = interp_func(x)
     
-
-    plt.plot(x,syn_template_flux)
-    plt.plot(x,y,'.', color='k')
-    plt.legend()
-    plt.show()
-    
     dif = (y - syn_template_flux)
     return dif
     
@@ -194,6 +200,9 @@ def chi_squared(params, x, y):
 
 #----------------------------------------------
 
+
+#recording the start
+start = time.time()
 
 #define the band
 #564u
@@ -210,6 +219,10 @@ global lmax
 
 lmin = 6705.6
 lmax = 6712.6
+
+
+lmin = 6450
+lmax = 6750
 
 
 #-----------
@@ -265,21 +278,21 @@ params = Parameters()
 
 
 
-params.add('teff_a', teff_a, vary=False)
-params.add('logg_a', logg_a, vary=False)
-params.add('met_a', met_a, vary=False)
+params.add('teff_a', teff_a, vary=True)
+params.add('logg_a', logg_a, vary=True)
+params.add('met_a', met_a  , vary=True)
 
-params.add('vmic_a', vmic_a, vary=False)
-params.add('FWHM_a', FWHM_a, vary=False)
+params.add('vmic_a', vmic_a, vary=True)
+params.add('FWHM_a', FWHM_a, vary=True)
 
 
 
-params.add('teff_b', teff_b, vary=False)
-params.add('logg_b', logg_b, vary=False)
-params.add('met_b', met_b, vary=False)
+params.add('teff_b', teff_b, vary=True)
+params.add('logg_b', logg_b, vary=True)
+params.add('met_b', met_b, vary=True)
 
-params.add('vmic_b', vmic_b, vary=False)
-params.add('FWHM_b', FWHM_b, vary=False)
+params.add('vmic_b', vmic_b, vary=True)
+params.add('FWHM_b', FWHM_b, vary=True)
 
 
 
@@ -289,16 +302,13 @@ params.add('abond_b', abond_b, min = -5.0, max = 10.0)
 
 
 
-# just a counter
-n=0
+#just a counter
 result = minimize(chi_squared, params, method='leastsq', args=(x, y))
 params = result.params
 
 
-
-#print result.redchi
-#print params['amp'].value, params['sigma'].value, params['lambdac'].value
-
+#print(result.redchi)
+#print(result.chisqr)
 
 
 #make the syn based on the results.
@@ -311,14 +321,14 @@ wv_a, fl_a, wv_b, fl_b, wv_sb, fl_sb = make_synSB(params['teff_a'].value,params[
 #-----------
 # Plotting the results
 
+
+
 fig, ax = plt.subplots(figsize=(15, 5))
 
 ax.plot(x, y,'.', color='k',label='observed')
 
 ax.plot(wv_a,fl_a, label='synA', linewidth=2.0, color='k',alpha = 0.2)
 ax.plot(wv_b,fl_b, label='synB', linewidth=2.0, color='r',alpha = 0.2)
-
-
 
 
 ax.plot(wv_sb,fl_sb, label='SB-syn', linewidth=4.0, color='green')
@@ -332,6 +342,22 @@ ax.set_ylabel('Intensity')
 
 
 plt.savefig('../fig/sb2_test.pdf')
+
+
+
+
+
+#end time recorder and print the time
+end = time.time()
+    
+
+print('-----------------\n')
+print('\n')
+timer(end-start)
+print('\n')
+print('-----------------\n')
+
+print('**********DONE**********')
 
 
 #-----------
