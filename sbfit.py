@@ -12,7 +12,7 @@ try:
     from scripts_for_plotting import *
 except ModuleNotFoundError:
     import sys
-    sys.path.append('/Users/heitor/Desktop/NLTE-code/TSFitPy/')
+    sys.path.append('../TSFitPy/')
     from scripts_for_plotting import *
     
 
@@ -39,12 +39,12 @@ sns.set_context("paper", font_scale=1.5, rc={"lines.linewidth": 1.5})
 
 
 
-turbospectrum_paths = {"turbospec_path": "/Users/heitor/Desktop/NLTE-code/TSFitPy/turbospectrum/exec-gf/",  # change to /exec-gf/ if gnu compiler
-                       "interpol_path": "/Users/heitor/Desktop/NLTE-code/TSFitPy/scripts/model_interpolators/",
-                       "model_atom_path": "/Users/heitor/Desktop/NLTE-code/TSFitPy/input_files/nlte_data/model_atoms/",
-                       "departure_file_path": "/Users/heitor/Desktop/NLTE-code/TSFitPy/input_files/nlte_data/",
-                       "model_atmosphere_grid_path": "/Users/heitor/Desktop/NLTE-code/TSFitPy/input_files/model_atmospheres/",
-                       "line_list_path": "/Users/heitor/Desktop/NLTE-code/TSFitPy/input_files/linelists/linelist_for_fitting/"}
+turbospectrum_paths = {"turbospec_path": "../TSFitPy/turbospectrum/exec-gf/",  # change to /exec-gf/ if gnu compiler
+                       "interpol_path": "../TSFitPy/scripts/model_interpolators/",
+                       "model_atom_path": "../TSFitPy/input_files/nlte_data/model_atoms/",
+                       "departure_file_path": "../TSFitPy/input_files/nlte_data/",
+                       "model_atmosphere_grid_path": "../TSFitPy/input_files/model_atmospheres/",
+                       "line_list_path": "../TSFitPy/input_files/linelists/linelist_for_fitting/"}
 
 
 
@@ -74,7 +74,7 @@ def read_fits(name):
     print('Observed RV:')
     print(RV)
 
-    folder = '../specs'
+    folder = 'specs'
 
     print('Loading observed spectrum:')
     print(sobject_id)
@@ -82,7 +82,7 @@ def read_fits(name):
     #selecting one
     spec_name = spec3
                     
-    hdulist = fits.open('../specs/%s' % (spec_name), memmap=False) 
+    hdulist = fits.open('%s/%s' % (folder, spec_name), memmap=False) 
     
     header = hdulist[1].header
     y = hdulist[1].data
