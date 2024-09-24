@@ -188,9 +188,11 @@ def turbo(teff,logg,met,vmic,lmin,lmax,FWHM,resolution,abond):
     
     return wavelength, z
 
-def make_synSB(teff1,logg1,met1,vmic1,FWHM1,teff2,logg2,met2,vmic2,FWHM2,RV1,RV2,ratios):
+def make_synSB(teff1,logg1,met1,vmic1,FWHM1,teff2,logg2,met2,vmic2,FWHM2,RV1,RV2,ratios, individual=False):
     
     y_arr = []
+    sint1a_arr = []
+    sint2a_arr = []
 
     for i, j in enumerate([xc1, xc2, xc3, xc4]):
         try:
@@ -207,11 +209,17 @@ def make_synSB(teff1,logg1,met1,vmic1,FWHM1,teff2,logg2,met2,vmic2,FWHM2,RV1,RV2
             sint1a = 1./(1.+ratios[i]) * np.interp(j, template_wavelength_1_rv, template_flux_1, 1, 1)
             sint2a = 1./(1.+(1./ratios[i])) * np.interp(j, template_wavelength_2_rv, template_flux_2, 1, 1)
 
+            sint1a_arr.append(sint1a)
+            sint2a_arr.append(sint2a)
+
             y_arr.append(sint1a + sint2a)
         except:
             return np.zeros(len(xc1)+len(xc2)+len(xc3)+len(xc4))
 
-    return y_arr
+    if individual:
+        return sint1a_arr, sint2a_arr
+    else:
+        return y_arr
 
 def chi_squared(params, y):
 
@@ -402,10 +410,30 @@ if True:
     yosn = []
     yosl = []
     for j, i in enumerate(results):
+
         yosn.append(j)
         yosl.append(i['sobject_id'])
 
         pars, y_arr = read_fits(str(i['sobject_id']))
+
+        sint1a, sint2a = make_synSB(
+            i['teff_a'],i['logg_a'],i['met'],i['vmic_a'],i['FWHM_a'],
+            i['teff_b'],i['logg_b'],i['met'],i['vmic_b'],i['FWHM_b'],
+            i['RV_a'],i['RV_b'], [i['ratio1'], i['ratio2'], i['ratio3'], i['ratio4']],
+            individual=True
+        )
+        for h, xa in enumerate([xc1, xc2, xc3, xc4]):
+
+            fig2, ax = plt.subplots(figsize=(30, 6))
+            
+            ax.plot(xa, y_arr[h], c='black', lw=2, label='observed')
+            ax.plot(xa, sint1a[h], c='green', lw=1, label='primary')
+            ax.plot(xa, sint2a[h], c='blue', lw=1, label='secondary')
+            ax.plot(xa, sint1a[h]+sint2a[h], c='red', lw=1, label='primary+secondary')
+            plt.title(f"{i['sobject_id']}: {', '.join([str(k)+': '+'%.2f'%i[k] for k in fitted_pars])}\nGALAH SB2 result: {', '.join([str(k)+': '+'%.2f'%pars[dic[k]] for k in fitted_pars])}")
+            plt.tight_layout()
+            fig2.savefig(f"{i['sobject_id']}_{h}.png")
+            plt.close(fig2)
 
         nrow = 0
         ncol = 0
