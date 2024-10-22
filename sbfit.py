@@ -15,6 +15,28 @@ except ModuleNotFoundError:
     sys.path.append('../TSFitPy/')
     from scripts_for_plotting import *
     
+import joblib
+import importlib  
+import thecannon as tc
+
+disp, g_thetas, g_s2, g_fid, g_sca, chosen_labels, g_order = joblib.load('cannon_model_sme_TEFF_LOGG_FEH_VMIC_VSINI_AK_order2_nobins.dat')
+terms = tc.vectorizer.polynomial.terminator(chosen_labels, g_order)
+g_vectorizer = tc.vectorizer.polynomial.PolynomialVectorizer(chosen_labels, g_order) 
+
+g_m1 = disp < 5000
+g_m2 = (disp > 5000) & (disp < 6000)
+g_m3 = (disp > 6000) & (disp < 7000)
+g_m4 = disp > 7000  
+sint_wav1, sint_wav2, sint_wav3, sint_wav4 = disp[g_m1], disp[g_m2], disp[g_m3], disp[g_m4]
+g_s2 = [g_s2[g_m1], g_s2[g_m2], g_s2[g_m3], g_s2[g_m4]]
+mask1 = (sint_wav1 > 4715.94+15) & (sint_wav1 < 4896-15)
+mask2 = (sint_wav2 > 5650.06+15) & (sint_wav2 < 5868.25-15)
+mask3 = (sint_wav3 > 6480.52+15) & (sint_wav3 < 6733.92-15)
+mask4 = (sint_wav4 > 7693.50+15) & (sint_wav4 < 7875.55-15)
+g_masks = [mask1, mask2, mask3, mask4]
+g_sint_wavs = [sint_wav1, sint_wav2, sint_wav3, sint_wav4] 
+print(len(g_sint_wavs[0])+len(g_sint_wavs[1])+len(g_sint_wavs[2])+len(g_sint_wavs[3]))
+
 
 
 import numpy as np
@@ -94,6 +116,8 @@ xc4 = np.linspace(7705, 7860, num=int((7860-7705)/0.07)+1, endpoint=True)
 
 c = 299792.458  # speed of light in km/s
 #----------------------------------------------
+
+
 
 # Function to correct radial velocity
 def doppler_shift(wavelength, velocity):    
@@ -280,6 +304,18 @@ def fit_one_spectrum(sobject_id, return_dict):
     print(result.params)
     return_dict[sobject_id] = result
 
+def get_cannon(teff, logg, feh, vmic=False, vsini=False, ak=False, njob=1):  
+  #start = time.time() 
+  sint = g_thetas[:, 0]*0.0
+  print(teff, logg, feh, vmic, vsini, 0)
+  labs = (np.array([teff, logg, feh, vmic, vsini, 0]) - g_fid) / g_sca
+  
+  vec = g_vectorizer(labs)[0]
+  
+  for i, j in enumerate(vec):
+    sint += g_thetas[:, i]*j
+
+  return [sint[g_m1], sint[g_m2], sint[g_m3], sint[g_m4]]
     
 if False:
     '''[('RV_a', <Parameter 'RV_a', value=0.10130088915411824, bounds=[-inf:inf]>), ('teff_a', <Parameter 'teff_a', value=5921.470010004442, bounds=[-inf:inf]>), ('logg_a', <Parameter 'logg_a', value=3.1912906074133893, bounds=[-inf:inf]>), ('met', <Parameter 'met', value=-0.7225645873380172, bounds=[-inf:inf]>), ('vmic_a', <Parameter 'vmic_a', value=1.3749655489379948, bounds=[-inf:inf]>), ('FWHM_a', <Parameter 'FWHM_a', value=0.32459948568064, bounds=[-inf:inf]>), ('RV_b', <Parameter 'RV_b', value=-56.20739452597636, bounds=[-inf:inf]>), ('teff_b', <Parameter 'teff_b', value=5969.5773051892265, bounds=[-inf:inf]>), ('logg_b', <Parameter 'logg_b', value=3.0795239960923464, bounds=[-inf:inf]>), ('vmic_b', <Parameter 'vmic_b', value=2.889377752483208, bounds=[-inf:inf]>), ('FWHM_b', <Parameter 'FWHM_b', value=0.2981134625319619, bounds=[-inf:inf]>), ('ratio1', <Parameter 'ratio1', value=0.6355627846259799, bounds=[-inf:inf]>), ('ratio2', <Parameter 'ratio2', value=0.6702174339667246, bounds=[-inf:inf]>), ('ratio3', <Parameter 'ratio3', value=0.6004373582439976, bounds=[-inf:inf]>), ('ratio4', <Parameter 'ratio4', value=0.573118822365639, bounds=[-inf:inf]>)]'''
@@ -401,6 +437,48 @@ listb = listb.split()
 
 
 if True:
+    pars, y_arr = read_fits('170129002601083')
+    #print(pars)
+    
+    #ratios = [pars['ratio1_50'].value[0], pars['ratio2_50'].value[0], pars['ratio3_50'].value[0], pars['ratio4_50'].value[0]]
+    #cannon_sint1 = get_cannon(pars['teff1_50'].value[0], pars['logg1_50'].value[0], pars['feh_50'].value[0], pars['vmic1_50'].value[0], pars['vbroad1_50'].value[0], False, njob=1)
+    #cannon_sint2 = get_cannon(pars['teff2_50'].value[0], pars['logg2_50'].value[0], pars['feh_50'].value[0], pars['vmic2_50'].value[0], pars['vbroad2_50'].value[0], False, njob=1)
+
+    
+    mcmc = Table.read('../selection_results_dec12all.fits')
+    pars = mcmc[mcmc['sobject_id'] == 170129002601083]
+    print(pars)
+    ratios = [pars['mcmc_ratio1'].value[0], pars['mcmc_ratio2'].value[0], pars['mcmc_ratio3'].value[0], pars['mcmc_ratio4'].value[0]]
+    cannon_sint1 = get_cannon(pars['mcmc_teff1'].value[0], pars['mcmc_logg1'].value[0], pars['mcmc_met'].value[0], pars['mcmc_Vmic1'].value[0], 10, False, njob=1)
+    cannon_sint2 = get_cannon(pars['mcmc_teff2'].value[0], pars['mcmc_logg2'].value[0], pars['mcmc_met'].value[0], pars['mcmc_Vmic2'].value[0], 10, False, njob=1)
+    
+    cannon_sint1a = []
+    cannon_sint2a = []
+
+    #doppler shift
+    for h, xa in enumerate([xc1, xc2, xc3, xc4]):
+        #g_sint_wavs_1_rv = doppler_shift(g_sint_wavs[h], pars['V1_50'].value[0])
+        #g_sint_wavs_2_rv = doppler_shift(g_sint_wavs[h], pars['V2_50'].value[0])
+        g_sint_wavs_1_rv = doppler_shift(g_sint_wavs[h], pars['mcmc_V1'].value[0])
+        g_sint_wavs_2_rv = doppler_shift(g_sint_wavs[h], pars['mcmc_V2'].value[0])
+        cannon_sint1a.append(1./(1.+ratios[h]) * np.interp(xa, g_sint_wavs_1_rv, cannon_sint1[h], 1, 1))
+        cannon_sint2a.append(1./(1.+(1./ratios[h])) * np.interp(xa, g_sint_wavs_2_rv, cannon_sint1[h], 1, 1))
+
+    for h, xa in enumerate([xc1, xc2, xc3, xc4]):
+
+        fig2, ax = plt.subplots(figsize=(30, 7))
+        
+        ax.plot(xa, y_arr[h], c='black', lw=1, label='observed')
+        ax.plot(xa, cannon_sint1a[h], c='green', lw=1, ls='--', label='primary Cannon')
+        ax.plot(xa, cannon_sint2a[h], c='blue', lw=1, ls='--', label='secondary Cannon')
+        ax.plot(xa, cannon_sint1a[h]+cannon_sint2a[h], c='red', lw=1, ls='--', label='primary+secondary Cannon')
+        #plt.title(f"{pars['sobject_id']}: GALAH SB2 result: {', '.join([str(k)+': '+'%.2f'%pars[dic[k]] for k in fitted_pars])}\nCHI2_reduced: {'%.2f'%(pars['chi2_binary_pipeline'].value[0]/14304.)}, ruwe: {'%.2f'%pars['ruwe']}")
+        plt.tight_layout()
+        #fig2.savefig(f"{i['sobject_id']}_{h}.png")
+        plt.show()
+        plt.close(fig2)
+
+if False:
 
     results = Table.read('results.csv')
     results.rename_column('#sobject_id', 'sobject_id')
@@ -415,7 +493,21 @@ if True:
         yosl.append(i['sobject_id'])
 
         pars, y_arr = read_fits(str(i['sobject_id']))
+        ratios = [pars['ratio1_50'].value[0], pars['ratio2_50'].value[0], pars['ratio3_50'].value[0], pars['ratio4_50'].value[0]]
 
+        cannon_sint1 = get_cannon(pars['teff1_50'].value[0], pars['logg1_50'].value[0], pars['feh_50'].value[0], pars['vmic1_50'].value[0], pars['vbroad1_50'].value[0], False, njob=1)
+        cannon_sint2 = get_cannon(pars['teff2_50'].value[0], pars['logg2_50'].value[0], pars['feh_50'].value[0], pars['vmic2_50'].value[0], pars['vbroad2_50'].value[0], False, njob=1)
+        #doppler shift
+        
+        cannon_sint1a = []
+        cannon_sint2a = []
+
+        for h, xa in enumerate([xc1, xc2, xc3, xc4]):
+            g_sint_wavs_1_rv = doppler_shift(g_sint_wavs[h], pars['V1_50'].value[0])
+            g_sint_wavs_2_rv = doppler_shift(g_sint_wavs[h], pars['V2_50'].value[0])
+            cannon_sint1a.append(1./(1.+ratios[h]) * np.interp(xa, g_sint_wavs_1_rv, cannon_sint1[h], 1, 1))
+            cannon_sint2a.append(1./(1.+(1./ratios[h])) * np.interp(xa, g_sint_wavs_2_rv, cannon_sint1[h], 1, 1))
+        
         sint1a, sint2a = make_synSB(
             i['teff_a'],i['logg_a'],i['met'],i['vmic_a'],i['FWHM_a'],
             i['teff_b'],i['logg_b'],i['met'],i['vmic_b'],i['FWHM_b'],
@@ -424,13 +516,16 @@ if True:
         )
         for h, xa in enumerate([xc1, xc2, xc3, xc4]):
 
-            fig2, ax = plt.subplots(figsize=(30, 6))
+            fig2, ax = plt.subplots(figsize=(30, 7))
             
             ax.plot(xa, y_arr[h], c='black', lw=2, label='observed')
             ax.plot(xa, sint1a[h], c='green', lw=1, label='primary')
             ax.plot(xa, sint2a[h], c='blue', lw=1, label='secondary')
             ax.plot(xa, sint1a[h]+sint2a[h], c='red', lw=1, label='primary+secondary')
-            plt.title(f"{i['sobject_id']}: {', '.join([str(k)+': '+'%.2f'%i[k] for k in fitted_pars])}\nGALAH SB2 result: {', '.join([str(k)+': '+'%.2f'%pars[dic[k]] for k in fitted_pars])}")
+            ax.plot(xa, cannon_sint1a[h], c='green', lw=1, ls='--', label='primary Cannon')
+            ax.plot(xa, cannon_sint2a[h], c='blue', lw=1, ls='--', label='secondary Cannon')
+            ax.plot(xa, cannon_sint1a[h]+cannon_sint2a[h], c='red', lw=1, ls='--', label='primary+secondary Cannon')
+            plt.title(f"{i['sobject_id']}: {', '.join([str(k)+': '+'%.2f'%i[k] for k in fitted_pars])}\nGALAH SB2 result: {', '.join([str(k)+': '+'%.2f'%pars[dic[k]] for k in fitted_pars])}\nCHI2_reduced: {'%.2f'%(pars['chi2_binary_pipeline'].value[0]/14304.)}, ruwe: {'%.2f'%pars['ruwe']}")
             plt.tight_layout()
             fig2.savefig(f"{i['sobject_id']}_{h}.png")
             plt.close(fig2)
