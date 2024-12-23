@@ -59,9 +59,6 @@ from scipy.interpolate import interp1d
 #from scipy.optimize import minimize
 #from scipy.optimize import minimize, differential_evolution
 
-
-
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 sns.set_style("white")
 sns.set_context("paper", font_scale=1.5, rc={"lines.linewidth": 1.5})
 
@@ -74,11 +71,9 @@ turbospectrum_paths = {"turbospec_path": "../TSFitPy/turbospectrum/exec-gf/",  #
                        "model_atmosphere_grid_path": "../TSFitPy/input_files/model_atmospheres/",
                        "line_list_path": "../TSFitPy/input_files/linelists/linelist_for_fitting/"}
 
-
 sb2_galah = Table.read('../SB2_catalogue.fits')
 dr6table = Table.read('/media/storage/OWNCLOUD/GALAH/obs/reductions/Iraf_6.1/dr6.1.fits')
 gaia = Table.read('/data4/travegre/Projects/Galah_binaries/GALAH_iDR3_main_191213.fits')
-
 
 dic = {
     'RV_a': 'V1_50',
@@ -192,9 +187,15 @@ def turbo(teff,logg,met,vmic,lmin,lmax,FWHM,resolution,abond):
     atmosphere_type = "1D"   # "1D" or "3D"
     nlte_flag = False
     
-    elements_in_nlte = ["Fe", "Mg"]  # can choose several elements, used ONLY if nlte_flag = True
-    element_abundances = {"Li": abond, "O": 0.0}  # elemental abundances [X/Fe]; if not written solar scaled ones are used
-    include_molecules = False  # way faster without them
+    if True:
+        # only standard stellar parameters
+        elements_in_nlte = []  # can choose several elements, used ONLY if nlte_flag = True
+        element_abundances = {}  # elemental abundances [X/Fe]; if not written solar scaled ones are used
+        include_molecules = True  # way faster without them
+    else:
+        elements_in_nlte = ["Fe", "Mg"]  # can choose several elements, used ONLY if nlte_flag = True
+        element_abundances = {"Li": abond["Li"], "O": abond["O"]}  # elemental abundances [X/Fe]; if not written solar scaled ones are used
+        include_molecules = True  # way faster without them
     
     # plots the data, but can also save it for later use
     wavelength, flux = plot_synthetic_data(turbospectrum_paths, teff, logg, met, vmic, lmin, lmax, ldelta, atmosphere_type, nlte_flag, elements_in_nlte, element_abundances, include_molecules, resolution=resolution, macro=0, rotation=0, verbose=False)
@@ -310,13 +311,42 @@ def get_cannon(teff, logg, feh, vmic=False, vsini=False, ak=False, njob=1):
   print(teff, logg, feh, vmic, vsini, 0)
   labs = (np.array([teff, logg, feh, vmic, vsini, 0]) - g_fid) / g_sca
   
-  vec = g_vectorizer(labs)[0]
-  
+  vec = g_vectorizer(labs)
+
   for i, j in enumerate(vec):
     sint += g_thetas[:, i]*j
 
   return [sint[g_m1], sint[g_m2], sint[g_m3], sint[g_m4]]
+
+def niceplot(fig, labelsize=18):
+    ax_list = fig.axes
     
+    for ax in ax_list:
+        try:
+            ax.tick_params(axis='both', which='major', labelsize=labelsize)  
+            ax.title.set_size(labelsize)            
+            ax.xaxis.label.set_size(labelsize) 
+            ax.yaxis.label.set_size(labelsize)   
+            #cbar = ax.findobj(lambda obj: hasattr(obj, "colorbar") and obj.colorbar)[0].colorbar
+            #cbar.ax.tick_params(axis='both', which='major', labelsize=labelsize)
+
+            ymin, ymax = ax.get_ylim()
+            xmin, xmax = ax.get_xlim()
+            ax.tick_params(direction="in", which='major', right=True, top=True, left=True, bottom=True, length=10, width=2) 
+            ax.tick_params(direction="in", which='minor', right=True, top=True, left=True, bottom=True, length=5, width=1)    
+            ax.yaxis.set_minor_locator(MultipleLocator(0.02))
+            ax.xaxis.set_minor_locator(MultipleLocator(2))
+            ax.xaxis.set_major_locator(MultipleLocator(10))
+            ax.yaxis.set_major_locator(MultipleLocator(0.1))
+            ax.set_xticks(ax.get_xticks()[1:-1])
+            ax.set_yticks(ax.get_yticks()[1:-1])
+        except:
+            print_exception()
+
+    #fig.suptitle(str(fig._suptitle), fontsize=labelsize)
+    fig.set_tight_layout(True)
+
+
 if False:
     '''[('RV_a', <Parameter 'RV_a', value=0.10130088915411824, bounds=[-inf:inf]>), ('teff_a', <Parameter 'teff_a', value=5921.470010004442, bounds=[-inf:inf]>), ('logg_a', <Parameter 'logg_a', value=3.1912906074133893, bounds=[-inf:inf]>), ('met', <Parameter 'met', value=-0.7225645873380172, bounds=[-inf:inf]>), ('vmic_a', <Parameter 'vmic_a', value=1.3749655489379948, bounds=[-inf:inf]>), ('FWHM_a', <Parameter 'FWHM_a', value=0.32459948568064, bounds=[-inf:inf]>), ('RV_b', <Parameter 'RV_b', value=-56.20739452597636, bounds=[-inf:inf]>), ('teff_b', <Parameter 'teff_b', value=5969.5773051892265, bounds=[-inf:inf]>), ('logg_b', <Parameter 'logg_b', value=3.0795239960923464, bounds=[-inf:inf]>), ('vmic_b', <Parameter 'vmic_b', value=2.889377752483208, bounds=[-inf:inf]>), ('FWHM_b', <Parameter 'FWHM_b', value=0.2981134625319619, bounds=[-inf:inf]>), ('ratio1', <Parameter 'ratio1', value=0.6355627846259799, bounds=[-inf:inf]>), ('ratio2', <Parameter 'ratio2', value=0.6702174339667246, bounds=[-inf:inf]>), ('ratio3', <Parameter 'ratio3', value=0.6004373582439976, bounds=[-inf:inf]>), ('ratio4', <Parameter 'ratio4', value=0.573118822365639, bounds=[-inf:inf]>)]'''
     pars, y_arr = read_fits('171230001601376')
@@ -436,7 +466,7 @@ listb = '''140117001501305
 listb = listb.split()
 
 
-if True:
+if False:
     pars, y_arr = read_fits('170129002601083')
     #print(pars)
     
@@ -449,8 +479,8 @@ if True:
     pars = mcmc[mcmc['sobject_id'] == 170129002601083]
     print(pars)
     ratios = [pars['mcmc_ratio1'].value[0], pars['mcmc_ratio2'].value[0], pars['mcmc_ratio3'].value[0], pars['mcmc_ratio4'].value[0]]
-    cannon_sint1 = get_cannon(pars['mcmc_teff1'].value[0], pars['mcmc_logg1'].value[0], pars['mcmc_met'].value[0], pars['mcmc_Vmic1'].value[0], 10, False, njob=1)
-    cannon_sint2 = get_cannon(pars['mcmc_teff2'].value[0], pars['mcmc_logg2'].value[0], pars['mcmc_met'].value[0], pars['mcmc_Vmic2'].value[0], 10, False, njob=1)
+    cannon_sint1 = get_cannon(pars['mcmc_teff1'].value[0], pars['mcmc_logg1'].value[0], pars['mcmc_met'].value[0], pars['mcmc_Vmic1'].value[0], pars['mcmc_Vsini1'].value[0], False, njob=1)
+    cannon_sint2 = get_cannon(pars['mcmc_teff2'].value[0], pars['mcmc_logg2'].value[0], pars['mcmc_met'].value[0], pars['mcmc_Vmic2'].value[0], pars['mcmc_Vsini2'].value[0], False, njob=1)
     
     cannon_sint1a = []
     cannon_sint2a = []
@@ -478,7 +508,7 @@ if True:
         plt.show()
         plt.close(fig2)
 
-if False:
+if True:
 
     results = Table.read('results.csv')
     results.rename_column('#sobject_id', 'sobject_id')
@@ -516,17 +546,27 @@ if False:
         )
         for h, xa in enumerate([xc1, xc2, xc3, xc4]):
 
-            fig2, ax = plt.subplots(figsize=(30, 7))
+            fig2, ax = plt.subplots(nrows=2, ncols=1, figsize=(30, 10))
             
-            ax.plot(xa, y_arr[h], c='black', lw=2, label='observed')
-            ax.plot(xa, sint1a[h], c='green', lw=1, label='primary')
-            ax.plot(xa, sint2a[h], c='blue', lw=1, label='secondary')
-            ax.plot(xa, sint1a[h]+sint2a[h], c='red', lw=1, label='primary+secondary')
-            ax.plot(xa, cannon_sint1a[h], c='green', lw=1, ls='--', label='primary Cannon')
-            ax.plot(xa, cannon_sint2a[h], c='blue', lw=1, ls='--', label='secondary Cannon')
-            ax.plot(xa, cannon_sint1a[h]+cannon_sint2a[h], c='red', lw=1, ls='--', label='primary+secondary Cannon')
-            plt.title(f"{i['sobject_id']}: {', '.join([str(k)+': '+'%.2f'%i[k] for k in fitted_pars])}\nGALAH SB2 result: {', '.join([str(k)+': '+'%.2f'%pars[dic[k]] for k in fitted_pars])}\nCHI2_reduced: {'%.2f'%(pars['chi2_binary_pipeline'].value[0]/14304.)}, ruwe: {'%.2f'%pars['ruwe']}")
-            plt.tight_layout()
+            ax[0].plot(xa, y_arr[h] - (sint1a[h]+sint2a[h]) + 0.4, c='red', lw=1, label='TURBOSPECTRUM')
+            ax[0].plot(xa, y_arr[h] - (cannon_sint1a[h]+cannon_sint2a[h]), c='red', lw=1, ls='--', label='THE CANNON')
+            ax[0].axhline(0.0, c='black', lw=0.5)
+            ax[0].axhline(0.4, c='black', lw=0.5)
+            ax[0].set_ylim([-0.2,0.6])
+            ax[0].set_ylabel('O-C')
+            ax[0].legend()
+            ax[1].plot(xa, y_arr[h], c='black', lw=2, label='observed')
+            ax[1].plot(xa, sint1a[h], c='green', lw=1, label='primary')
+            ax[1].plot(xa, sint2a[h], c='blue', lw=1, label='secondary')
+            ax[1].plot(xa, sint1a[h]+sint2a[h], c='red', lw=1, label='primary+secondary')
+            ax[1].plot(xa, cannon_sint1a[h], c='green', lw=1, ls='--', label='primary Cannon')
+            ax[1].plot(xa, cannon_sint2a[h], c='blue', lw=1, ls='--', label='secondary Cannon')
+            ax[1].plot(xa, cannon_sint1a[h]+cannon_sint2a[h], c='red', lw=1, ls='--', label='primary+secondary Cannon')
+            ax[1].set_ylim([0,1.3])
+            
+
+            fig2.suptitle(f"{i['sobject_id']}\nTURBOSPECTRUM: {', '.join([str(k)+': '+'%.2f'%i[k] for k in fitted_pars])}\nTHE CANNON SB2: {', '.join([str(k)+': '+'%.2f'%pars[dic[k]] for k in fitted_pars])}")#\nCHI2_reduced: {'%.2f'%(pars['chi2_binary_pipeline'].value[0]/14304.)}, ruwe: {'%.2f'%pars['ruwe']}")
+            niceplot(fig2)
             fig2.savefig(f"{i['sobject_id']}_{h}.png")
             plt.close(fig2)
 
@@ -613,99 +653,55 @@ if False:
 
         plt.show()
 
-#make the syn based on the results.
-print('making SB2 Spectrum')
-wv_a, fl_a, wv_b, fl_b, wv_sb, fl_sb = make_synSB(params['teff_a'].value,params['logg_a'].value,params['met'].value,params['vmic_a'].value,params['FWHM_a'].value,params['abond_a'].value
-           ,params['teff_b'].value,params['logg_b'].value,params['met'].value,params['vmic_b'].value,params['FWHM_b'].value,params['abond_b'].value
-           ,RV,ratio)
 
+if False:
+    #make the syn based on the results.
+    print('making SB2 Spectrum')
+    wv_a, fl_a, wv_b, fl_b, wv_sb, fl_sb = make_synSB(params['teff_a'].value,params['logg_a'].value,params['met'].value,params['vmic_a'].value,params['FWHM_a'].value,params['abond_a'].value
+               ,params['teff_b'].value,params['logg_b'].value,params['met'].value,params['vmic_b'].value,params['FWHM_b'].value,params['abond_b'].value
+               ,RV,ratio)
 
-#-----------
-# Plotting the results
 
+    #-----------
+    # Plotting the results
 
 
-fig, ax = plt.subplots(figsize=(15, 5))
 
-ax.plot(x, y,'.', color='k',label='observed')
+    fig, ax = plt.subplots(figsize=(15, 5))
 
-ax.plot(wv_a,fl_a, label='synA', linewidth=2.0, color='k',alpha = 0.2)
-ax.plot(wv_b,fl_b, label='synB', linewidth=2.0, color='r',alpha = 0.2)
+    ax.plot(x, y,'.', color='k',label='observed')
 
+    ax.plot(wv_a,fl_a, label='synA', linewidth=2.0, color='k',alpha = 0.2)
+    ax.plot(wv_b,fl_b, label='synB', linewidth=2.0, color='r',alpha = 0.2)
 
-ax.plot(wv_sb,fl_sb, label='SB-syn', linewidth=4.0, color='green')
 
+    ax.plot(wv_sb,fl_sb, label='SB-syn', linewidth=4.0, color='green')
 
 
-ax.legend(loc=3)
-ax.set_xlabel('Wavelength')
-ax.set_ylabel('Intensity')
-#ax.set_title(f"radial velocity: {best_velocity_r} km/s")
 
+    ax.legend(loc=3)
+    ax.set_xlabel('Wavelength')
+    ax.set_ylabel('Intensity')
+    #ax.set_title(f"radial velocity: {best_velocity_r} km/s")
 
-plt.savefig('../fig/sb2_test.pdf')
 
+    plt.savefig('../fig/sb2_test.pdf')
 
 
 
 
-#end time recorder and print the time
-end = time.time()
-    
 
-print('-----------------\n')
-print('\n')
-timer(end-start)
-print('\n')
-print('-----------------\n')
+    #end time recorder and print the time
+    end = time.time()
+        
 
-print('**********DONE**********')
+    print('-----------------\n')
+    print('\n')
+    timer(end-start)
+    print('\n')
+    print('-----------------\n')
 
+    print('**********DONE**********')
 
-#-----------
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
+    #-----------
